@@ -8,7 +8,7 @@
 
 ### `list_modules`
 
-プロジェクト内の学習対象モジュール一覧を返します。
+プロジェクト内の学習対象モジュール一覧を返します。`projectRoot` に開発リポジトリを指定してください。
 
 - `root` — 親リポジトリ（サブモジュール配下を除く）
 - サブモジュール — `.gitmodules` から検出（例: `luna`, `tokuto`）
@@ -24,7 +24,24 @@
 
 | パラメータ | 必須 | 説明 |
 |---|---|---|
+| `projectRoot` | 推奨 | 学習対象の開発リポジトリルート。MCP のインストール先とは別パスを指定 |
 | `module` | 任意 | 学習対象モジュール（`root`, `luna` など）。サブモジュールがある場合に指定 |
+
+**リポジトリの特定ルール**（`projectRoot` 省略時）:
+
+1. 環境変数 `CODE_READ_LEARNING_CWD`（Git リポジトリの場合）
+2. MCP 起動時の `cwd`（Git リポジトリの場合）
+3. いずれも Git リポジトリでなければ **探索せず** 選択を要求
+
+```json
+{
+  "requiresProjectSelection": true,
+  "message": "学習対象の Git リポジトリが特定できません...",
+  "hint": "projectRoot パラメータで開発リポジトリのパスを指定してください。例: /home/gs/gsmcu-livekit",
+  "detectedCwd": "/home/gs",
+  "envProjectRoot": null
+}
+```
 
 サブモジュールが存在し `module` が省略された場合は、教材の代わりにモジュール選択を要求します。
 
@@ -50,7 +67,7 @@
   "learningPrompt": "Code Reading Learning Mode\n...",
   "meta": {
     "source": "staged",
-    "workingDirectory": "/path/to/repo",
+    "projectRoot": "/path/to/repo",
     "module": { "id": "luna", "name": "luna", "path": "luna", "type": "submodule" },
     "availableModules": []
   }
@@ -121,7 +138,9 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":
 | 設定項目 | 説明 |
 |---|---|
 | `args` | clone 先の `dist/index.js` の**リモート絶対パス** |
-| `CODE_READ_LEARNING_CWD` | 学習対象の Git リポジトリルート（例: `loopgate_dev`） |
+| `CODE_READ_LEARNING_CWD` | （任意）デフォルトの学習対象リポジトリ。省略時はツールの `projectRoot` で指定 |
+
+`cwd` は MCP 起動ディレクトリです。学習対象は **`projectRoot` パラメータ** または `CODE_READ_LEARNING_CWD` で指定してください。MCP のインストール先を自動探索しません。
 
 設定後、Cursor を再起動してください。
 
@@ -216,9 +235,8 @@ stdio トランスポートで起動します。通常は Cursor から利用し
 ### モジュール選択の例
 
 ```
-list_modules → luna, tokuto, root を確認
-get_learning_material({ module: "luna" }) → luna サブモジュールの差分で学習
-get_learning_material({ module: "root" }) → 親リポジトリ直下のみ
+list_modules({ projectRoot: "/home/gs/gsmcu-livekit" })
+get_learning_material({ projectRoot: "/home/gs/gsmcu-livekit", module: "luna" })
 ```
 
 ## エラー時の挙動

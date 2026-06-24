@@ -21,6 +21,14 @@ export interface LearningMaterialOptions {
   module?: string;
 }
 
+export interface ProjectSelectionRequired {
+  requiresProjectSelection: true;
+  message: string;
+  hint: string;
+  detectedCwd: string;
+  envProjectRoot?: string;
+}
+
 export interface ModuleSelectionRequired {
   requiresModuleSelection: true;
   availableModules: ModuleInfo[];
