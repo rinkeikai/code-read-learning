@@ -1,7 +1,7 @@
 {
   "name": "code-read-learning",
   "version": "1.2.0",
-  "description": "MCP server for generating code reading learning materials from git diffs",
+  "description": "MCP server for code reading practice based on your own AI-assisted implementation diffs",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
