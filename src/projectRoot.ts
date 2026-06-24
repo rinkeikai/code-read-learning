@@ -40,7 +40,7 @@ export async function resolveProjectRoot(
     requiresProjectSelection: true,
     message:
       "学習対象の Git リポジトリが特定できません。projectRoot パラメータで開発リポジトリのパスを指定してください。",
-    hint: "MCP のインストール先（code-read-learning）ではなく、実装したプロジェクトのルートを指定してください。例: /home/gs/gsmcu-livekit",
+    hint: "MCP のインストール先（code-read-learning）ではなく、実装したプロジェクトのルートを projectRoot に指定してください。",
     detectedCwd,
     envProjectRoot,
   };

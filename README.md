@@ -8,14 +8,16 @@
 
 ### `list_modules`
 
-プロジェクト内の学習対象モジュール一覧を返します。`projectRoot` に開発リポジトリを指定してください。
+学習対象プロジェクト内のモジュール一覧を返します。`projectRoot` に開発リポジトリを指定してください。
 
 - `root` — 親リポジトリ（サブモジュール配下を除く）
-- サブモジュール — `.gitmodules` から検出（例: `luna`, `tokuto`）
+- サブモジュール — `.gitmodules` から自動検出
 
 ### `get_learning_material`
 
-以下の優先順位で教材を取得します。
+指定した開発リポジトリの Git 差分から、コード読解学習用の教材を生成します。
+
+差分の取得優先順位:
 
 1. `git diff --staged`（ステージ済み変更）
 2. `git show HEAD`（最新コミット）
@@ -24,33 +26,39 @@
 
 | パラメータ | 必須 | 説明 |
 |---|---|---|
-| `projectRoot` | 推奨 | 学習対象の開発リポジトリルート。MCP のインストール先とは別パスを指定 |
-| `module` | 任意 | 学習対象モジュール（`root`, `luna` など）。サブモジュールがある場合に指定 |
+| `projectRoot` | 推奨 | 学習対象の開発リポジトリルート（`.git` があるディレクトリ）。MCP のインストール先とは別パスを指定 |
+| `module` | 任意 | 学習対象モジュール（`root` またはサブモジュール名）。複数モジュールがある場合に指定 |
+
+`list_modules` も同様に `projectRoot` を受け取ります。
 
 **リポジトリの特定ルール**（`projectRoot` 省略時）:
 
 1. 環境変数 `CODE_READ_LEARNING_CWD`（Git リポジトリの場合）
-2. MCP 起動時の `cwd`（Git リポジトリの場合）
+2. `mcp.json` の `cwd`（Git リポジトリの場合）
 3. いずれも Git リポジトリでなければ **探索せず** 選択を要求
+
+> **補足**: 上記の `cwd` は MCP 本体のインストール先ではなく、Cursor が MCP プロセスを起動するときに設定する作業ディレクトリです。開発リポジトリを指すように設定できます。
+
+`projectRoot` が特定できない場合の応答例:
 
 ```json
 {
   "requiresProjectSelection": true,
   "message": "学習対象の Git リポジトリが特定できません...",
-  "hint": "projectRoot パラメータで開発リポジトリのパスを指定してください。例: /home/gs/gsmcu-livekit",
-  "detectedCwd": "/home/gs",
+  "hint": "projectRoot パラメータで開発リポジトリのパスを指定してください。",
+  "detectedCwd": "/path/to/current/working/directory",
   "envProjectRoot": null
 }
 ```
 
-サブモジュールが存在し `module` が省略された場合は、教材の代わりにモジュール選択を要求します。
+サブモジュールが存在し `module` が省略された場合:
 
 ```json
 {
   "requiresModuleSelection": true,
   "availableModules": [
     { "id": "root", "name": "ルート（親リポジトリ）", "path": ".", "type": "root" },
-    { "id": "luna", "name": "luna", "path": "luna", "type": "submodule" }
+    { "id": "api", "name": "api", "path": "api", "type": "submodule" }
   ],
   "message": "複数のモジュールが見つかりました..."
 }
@@ -61,24 +69,27 @@
 ```json
 {
   "files": ["src/example.ts"],
-  "functions": ["#pickLayoutForRender", "renderLayout"],
+  "functions": ["renderLayout", "pickLayout"],
   "diff": "...",
-  "recommendedOrder": ["#pickLayoutForRender", "renderLayout"],
+  "recommendedOrder": ["pickLayout", "renderLayout"],
   "learningPrompt": "Code Reading Learning Mode\n...",
   "meta": {
     "source": "staged",
-    "projectRoot": "/path/to/repo",
-    "module": { "id": "luna", "name": "luna", "path": "luna", "type": "submodule" },
+    "projectRoot": "/path/to/your-dev-project",
+    "module": { "id": "root", "name": "ルート（親リポジトリ）", "path": ".", "type": "root" },
     "availableModules": []
   }
 }
 ```
 
-- `files`: 変更されたファイル一覧
-- `functions`: 変更対象となった関数・メソッド一覧
-- `diff`: 生の diff 文字列
-- `recommendedOrder`: 読解順（呼び出し関係を推定、推定できない場合は変更順）
-- `learningPrompt`: AI 用の学習プロンプト
+| フィールド | 説明 |
+|---|---|
+| `files` | 変更されたファイル一覧 |
+| `functions` | 変更対象となった関数・メソッド一覧 |
+| `diff` | 生の diff 文字列 |
+| `recommendedOrder` | 読解順（呼び出し関係を推定、推定できない場合は変更順） |
+| `learningPrompt` | AI 用の学習プロンプト |
+| `meta.projectRoot` | 教材を取得した開発リポジトリ |
 
 ## セットアップ
 
@@ -90,80 +101,9 @@
 
 > **注意**: `node_modules/` はリポジトリに含まれません。  
 > **`git clone` だけでは使えません。** クローン後に `npm install` と Cursor 設定が必要です。  
-> `dist/`（ビルド済み JS）はリポジトリに含まれるため、リモート環境での TypeScript ビルドは不要です。
+> `dist/`（ビルド済み JS）はリポジトリに含まれるため、利用者側での TypeScript ビルドは不要です。
 
-### リモート SSH 環境（review-bridge-mcp と同じ使い方）
-
-[review-bridge-mcp](../review-bridge-mcp) と同様、開発プロジェクトの `claude-knowledge/` 配下に置いて使う構成を推奨します。
-
-```bash
-# 例: loopgate_dev を clone 済みの場合
-cd ~/loopgate_dev/claude-knowledge
-git clone https://github.com/rinkeikai/code-read-learning.git
-cd code-read-learning
-npm install
-```
-
-動作確認:
-
-```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' \
-  | node dist/index.js
-```
-
-`serverInfo` を含む JSON が返れば OK です。
-
-#### リモートの `~/.cursor/mcp.json`
-
-**SSH 接続先（Linux）の** `~/.cursor/mcp.json` に設定します。Windows 側のパスは使えません。
-
-`mcp.json.example` を参照し、パスを環境に合わせて変更してください。
-
-```json
-{
-  "mcpServers": {
-    "code-read-learning": {
-      "command": "node",
-      "args": [
-        "/home/gs/loopgate_dev/claude-knowledge/code-read-learning/dist/index.js"
-      ],
-      "env": {
-        "CODE_READ_LEARNING_CWD": "/home/gs/loopgate_dev"
-      }
-    }
-  }
-}
-```
-
-| 設定項目 | 説明 |
-|---|---|
-| `args` | clone 先の `dist/index.js` の**リモート絶対パス** |
-| `CODE_READ_LEARNING_CWD` | （任意）デフォルトの学習対象リポジトリ。省略時はツールの `projectRoot` で指定 |
-
-`cwd` は MCP 起動ディレクトリです。学習対象は **`projectRoot` パラメータ** または `CODE_READ_LEARNING_CWD` で指定してください。MCP のインストール先を自動探索しません。
-
-設定後、Cursor を再起動してください。
-
-#### review-bridge-mcp との比較
-
-| 項目 | review-bridge-mcp | code-read-learning |
-|---|---|---|
-| 配置場所 | `claude-knowledge/review-bridge-mcp` | `claude-knowledge/code-read-learning` |
-| clone 後の作業 | `npm install` → `npm run build` | `npm install` のみ（`dist/` 同梱） |
-| 学習対象の指定 | 不要 | `CODE_READ_LEARNING_CWD` で指定 |
-
-#### リモートで Connection closed になる場合
-
-```bash
-cd ~/code-read-learning   # または claude-knowledge/code-read-learning
-npm install
-ls -la dist/index.js
-ls node_modules/@modelcontextprotocol/sdk/package.json
-```
-
-`node_modules` が無いと起動直後に落ち、`Connection closed` になります。
-
-### 他の環境で初めて使う場合
+### インストール
 
 ```bash
 git clone https://github.com/rinkeikai/code-read-learning.git
@@ -171,7 +111,13 @@ cd code-read-learning
 npm install
 ```
 
-続いて Cursor の MCP 設定（`~/.cursor/mcp.json`）に追加します。パスは clone 先に合わせて変更してください。
+任意のディレクトリに clone できます。開発中のプロジェクト配下（例: `your-project/tools/code-read-learning`）に置いても構いません。
+
+### Cursor への登録
+
+グローバル設定（`~/.cursor/mcp.json`）またはプロジェクト設定（`.cursor/mcp.json`）に追加します。
+
+`mcp.json.example` をコピーし、パスを自身の環境に合わせて変更してください。
 
 ```json
 {
@@ -180,12 +126,48 @@ npm install
       "command": "node",
       "args": ["/path/to/code-read-learning/dist/index.js"],
       "env": {
-        "CODE_READ_LEARNING_CWD": "/path/to/your/project"
+        "CODE_READ_LEARNING_CWD": "/path/to/your-dev-project"
       }
     }
   }
 }
 ```
+
+| 設定項目 | 説明 |
+|---|---|
+| `args` | `code-read-learning` を clone した場所の `dist/index.js`（絶対パス） |
+| `env.CODE_READ_LEARNING_CWD` | （任意）デフォルトの学習対象リポジトリ。省略時はツールの `projectRoot` で都度指定 |
+| `cwd` | （任意）MCP 起動時の作業ディレクトリ。Git リポジトリを指定すれば `projectRoot` 省略時の候補になる |
+
+学習対象は **MCP のインストール先ではなく、開発リポジトリ** です。`projectRoot` パラメータ、`CODE_READ_LEARNING_CWD`、または `cwd` のいずれかで指定してください。
+
+設定後、Cursor を再起動してください。
+
+### ローカル（Windows / macOS）とリモート（SSH）の違い
+
+| 環境 | `mcp.json` の場所 | パスの形式 |
+|---|---|---|
+| ローカル | `~/.cursor/mcp.json` | OS に応じた絶対パス（例: `C:/...`, `/Users/...`） |
+| Remote SSH | **接続先**の `~/.cursor/mcp.json` | リモート OS の絶対パス（例: `/home/user/...`） |
+
+Remote SSH 利用時、ローカル PC 側のパスを `args` に書いても動作しません。
+
+### 動作確認
+
+```bash
+cd /path/to/code-read-learning
+npm install
+ls dist/index.js node_modules/@modelcontextprotocol/sdk/package.json
+
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' \
+  | node dist/index.js
+```
+
+`serverInfo` を含む JSON が返れば MCP サーバーは正常です。
+
+`node_modules` がないと起動直後にプロセスが終了し、Cursor では `Connection closed` と表示されます。
+
+### セットアップ手順まとめ
 
 | 手順 | 必須 | 説明 |
 |---|---|---|
@@ -194,15 +176,6 @@ npm install
 | `mcp.json` 設定 | ✅ | MCP サーバーの登録 |
 | Cursor 再起動 | ✅ | MCP 設定の反映 |
 | `~/.cursor/commands/code-read.md` | 任意 | `/code-read` スラッシュコマンドを使う場合 |
-
-**重要**: 学習対象リポジトリは `CODE_READ_LEARNING_CWD` で指定してください。
-
-### 依存関係のインストール（既に clone 済みの場合）
-
-```bash
-cd code-read-learning
-npm install
-```
 
 ### ビルド（開発者向け・src 変更後）
 
@@ -227,20 +200,26 @@ stdio トランスポートで起動します。通常は Cursor から利用し
 
 1. 開発チャットで Agent が実装を行う
 2. 実装完了後にコミット（または `git add` でステージ）
-3. 学習用の固定チャットで `/code-read` を実行
-4. サブモジュールがある場合はモジュールを選択
-5. MCP が教材を生成
-6. AI が Code Reading Learning モードで 1 構文ずつ読解を進める
+3. 学習用チャットで `/code-read` を実行、または MCP ツールを直接呼び出す
+4. 学習対象リポジトリ（`projectRoot`）を指定
+5. サブモジュールがある場合はモジュールを選択
+6. MCP が教材を生成
+7. AI が Code Reading Learning モードで 1 構文ずつ読解を進める
 
-### モジュール選択の例
+### 呼び出し例
 
 ```
-list_modules({ projectRoot: "/home/gs/gsmcu-livekit" })
-get_learning_material({ projectRoot: "/home/gs/gsmcu-livekit", module: "luna" })
+list_modules({ projectRoot: "/path/to/your-dev-project" })
+
+get_learning_material({
+  projectRoot: "/path/to/your-dev-project",
+  module: "root"
+})
 ```
 
 ## エラー時の挙動
 
+- 学習対象リポジトリが特定できない場合 → `requiresProjectSelection`
 - Git リポジトリでない場合
 - ステージ済み変更も最新コミットもない場合
 - `git` コマンドが見つからない場合

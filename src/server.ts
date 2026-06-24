@@ -8,7 +8,7 @@ const projectRootSchema = z
   .string()
   .optional()
   .describe(
-    "学習対象の開発リポジトリルート（.git があるディレクトリ）。MCP のインストール先とは別パスを指定する。例: /home/gs/gsmcu-livekit"
+    "学習対象の開発リポジトリルート（.git があるディレクトリ）。MCP のインストール先とは別パスを指定する。"
   );
 
 function formatError(error: unknown): string {
@@ -84,7 +84,7 @@ export function createServer() {
           .string()
           .optional()
           .describe(
-            "学習対象モジュール。root（親リポジトリ）またはサブモジュール名（例: luna, tokuto）。省略時、サブモジュールが存在すれば選択を要求する。"
+            "学習対象モジュール。root（親リポジトリ）またはサブモジュール名。省略時、サブモジュールが存在すれば選択を要求する。"
           ),
       },
     },
