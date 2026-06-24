@@ -1,258 +1,252 @@
 # code-read-learning
 
-AI Agent による実装が増える中で、**自分が書いた（生成した）コードを理解せずに次へ進む**ことを防ぐための MCP サーバーです。
+> AI Agentはコードを書いてくれる。
+> しかし、そのコードを読めるようにはしてくれない。
 
-## コンセプト
+---
 
-この MCP は、一般的なプログラミング学習のための教材を用意するツールではありません。
+## なぜ作ったのか
 
-**開発業務で AI を使って実装した内容**を Git 差分として取り出し、そのコードを自分の言葉で読めるようになるための読解セッションを始めるための補助を行います。
+Cursor Agent や Claude Code の登場によって、実装速度は劇的に向上しました。
 
-| この MCP がやること | この MCP がやらないこと |
-|---|---|
-| 自分の実装差分の取得・整理 | コードの解説・要約 |
-| 変更箇所・関数・読解順の提示 | 設計・アーキテクチャの説明 |
-| 読解セッション用プロンプトの提供 | 一般的な学習カリキュラムの生成 |
+以前なら数時間かかっていた実装も、AIと対話しながら数分で完成することがあります。
 
-実際の読解練習（1 行ずつ説明させる、理解確認まで進まない等）は Cursor AI 側が担当します。
+しかし、その一方で新しい問題が生まれました。
 
-## 想定利用フロー
+---
 
-```
-開発チャットで AI が実装
-        ↓
-実装完了・コミット（または git add）
-        ↓
-学習チャットで /code-read または MCP ツール実行
-        ↓
-自分が実装した差分を基に、1 構文ずつ読解
-        ↓
-理解できた状態で次の開発へ
-```
+機能は完成している。
 
-## 機能
+テストも通っている。
 
-### `list_modules`
+レビューも通った。
 
-自分が実装した変更があるプロジェクト内のモジュール一覧を返します。`projectRoot` に開発リポジトリを指定してください。
+でも、
 
-- `root` — 親リポジトリ（サブモジュール配下を除く）
-- サブモジュール — `.gitmodules` から自動検出
+**「このコードを説明してください」**
 
-### `get_learning_material`
+と言われると困る。
 
-**自分が実装した変更**の Git 差分から、読解セッションを開始するための情報を返します。
+---
 
-差分の取得優先順位:
+例えば、
 
-1. `git diff --staged`（ステージ済みの自分の変更）
-2. `git show HEAD`（直近コミットの自分の変更）
-
-#### 入力
-
-| パラメータ | 必須 | 説明 |
-|---|---|---|
-| `projectRoot` | 推奨 | 実装を行った開発リポジトリルート（`.git` があるディレクトリ）。MCP のインストール先とは別パスを指定 |
-| `module` | 任意 | 読解対象モジュール（`root` またはサブモジュール名）。複数モジュールがある場合に指定 |
-
-`list_modules` も同様に `projectRoot` を受け取ります。
-
-**リポジトリの特定ルール**（`projectRoot` 省略時）:
-
-1. 環境変数 `CODE_READ_LEARNING_CWD`（Git リポジトリの場合）
-2. `mcp.json` の `cwd`（Git リポジトリの場合）
-3. いずれも Git リポジトリでなければ **探索せず** 選択を要求
-
-> **補足**: 上記の `cwd` は MCP 本体のインストール先ではなく、Cursor が MCP プロセスを起動するときに設定する作業ディレクトリです。開発リポジトリを指すように設定できます。
-
-`projectRoot` が特定できない場合の応答例:
-
-```json
-{
-  "requiresProjectSelection": true,
-  "message": "学習対象の Git リポジトリが特定できません...",
-  "hint": "projectRoot パラメータで開発リポジトリのパスを指定してください。",
-  "detectedCwd": "/path/to/current/working/directory",
-  "envProjectRoot": null
-}
+```js
+const type = resolved.layoutType ?? params.type;
 ```
 
-サブモジュールが存在し `module` が省略された場合:
+という1行。
 
-```json
-{
-  "requiresModuleSelection": true,
-  "availableModules": [
-    { "id": "root", "name": "ルート（親リポジトリ）", "path": ".", "type": "root" },
-    { "id": "api", "name": "api", "path": "api", "type": "submodule" }
-  ],
-  "message": "複数のモジュールが見つかりました..."
-}
+なんとなく意味は分かる。
+
+でも、
+
+* `const` の役割は？
+* `resolved.layoutType` はどこから来る？
+* `??` は何をしている？
+* この行全体では何が起きる？
+
+と聞かれると説明できない。
+
+---
+
+英語で例えるなら、
+
+文章の雰囲気は分かる。
+
+でも一文ずつ翻訳できない状態に近い。
+
+---
+
+AI時代のエンジニアに必要なのは、
+
+コードを書く力だけではない。
+
+**コードを読む力（Code Reading力）**です。
+
+---
+
+## code-read-learningとは
+
+code-read-learning は、
+
+**自分が今まさに実装したコードを教材として利用するためのMCPサーバーです。**
+
+---
+
+一般的な学習サービスのように、
+
+* サンプルコード
+* チュートリアル
+* アルゴリズム問題
+
+を教材にはしません。
+
+---
+
+教材になるのは、
+
+**今日AIと一緒に実装したコードです。**
+
+---
+
+実装直後のコードを対象に、
+
+* 変更ファイル
+* 変更関数
+* 読解順
+* 学習セッション用プロンプト
+
+を生成します。
+
+---
+
+## このツールが目指すもの
+
+このツールの目的は、
+
+コードを解説することではありません。
+
+---
+
+コードを読めるようになることです。
+
+---
+
+レビューで
+
+> この1行は何をしていますか？
+
+と聞かれたときに、
+
+自分の言葉で説明できる状態を目指します。
+
+---
+
+## 他の学習ツールとの違い
+
+多くの学習教材は、
+
+学習のために作られたコードを扱います。
+
+しかし実際の業務で読むのは、
+
+AIが生成した実プロダクトのコードです。
+
+---
+
+code-read-learning は、
+
+学習と実務を分離しません。
+
+---
+
+今日実装したコードが、
+
+今日の教材になります。
+
+---
+
+つまり、
+
+開発そのものが学習になります。
+
+---
+
+## 想定フロー
+
+```text
+開発チャット
+↓
+Agentが実装
+↓
+コミット
+↓
+学習チャット
+↓
+/code-read
+↓
+Code Reading Session 開始
+↓
+1行ずつ読む
+↓
+理解できるまで進まない
 ```
 
-#### 出力
+---
 
-```json
-{
-  "files": ["src/example.ts"],
-  "functions": ["renderLayout", "pickLayout"],
-  "diff": "...",
-  "recommendedOrder": ["pickLayout", "renderLayout"],
-  "learningPrompt": "Code Reading Learning Mode\n...",
-  "meta": {
-    "source": "staged",
-    "projectRoot": "/path/to/your-dev-project",
-    "module": { "id": "root", "name": "ルート（親リポジトリ）", "path": ".", "type": "root" },
-    "availableModules": []
-  }
-}
-```
+## このMCPがやること
 
-| フィールド | 説明 |
-|---|---|
-| `files` | 自分が変更したファイル一覧 |
-| `functions` | 自分が変更した関数・メソッド一覧 |
-| `diff` | 自分の実装差分（生の diff 文字列） |
-| `recommendedOrder` | 読解順（呼び出し関係を推定、推定できない場合は変更順） |
-| `learningPrompt` | 読解セッション用の AI プロンプト |
-| `meta.projectRoot` | 差分を取得した開発リポジトリ |
+✅ Git差分を取得する
 
-> ツール名の `learning_material` は「一般的な教材」ではなく、**自分の実装差分を読むためのセッション情報**を指します。
+✅ 変更ファイルを抽出する
 
-## セットアップ
+✅ 変更関数を抽出する
 
-### 前提条件
+✅ 読解順を整理する
 
-- **Node.js**（v18 以上推奨）
-- **Git**（PATH に通されていること）
-- **Cursor**（MCP 対応版）
+✅ 学習セッション用プロンプトを生成する
 
-> **注意**: `node_modules/` はリポジトリに含まれません。  
-> **`git clone` だけでは使えません。** クローン後に `npm install` と Cursor 設定が必要です。  
-> `dist/`（ビルド済み JS）はリポジトリに含まれるため、利用者側での TypeScript ビルドは不要です。
+---
 
-### インストール
+## このMCPがやらないこと
 
-```bash
-git clone https://github.com/rinkeikai/code-read-learning.git
-cd code-read-learning
-npm install
-```
+❌ コードを要約する
 
-任意のディレクトリに clone できます。開発中のプロジェクト配下（例: `your-project/tools/code-read-learning`）に置いても構いません。
+❌ 勝手に答えを教える
 
-### Cursor への登録
+❌ アーキテクチャ解説を行う
 
-グローバル設定（`~/.cursor/mcp.json`）またはプロジェクト設定（`.cursor/mcp.json`）に追加します。
+❌ 設計レビューを行う
 
-`mcp.json.example` をコピーし、パスを自身の環境に合わせて変更してください。
+❌ 学習を代行する
 
-```json
-{
-  "mcpServers": {
-    "code-read-learning": {
-      "command": "node",
-      "args": ["/path/to/code-read-learning/dist/index.js"],
-      "env": {
-        "CODE_READ_LEARNING_CWD": "/path/to/your-dev-project"
-      }
-    }
-  }
-}
-```
+---
 
-| 設定項目 | 説明 |
-|---|---|
-| `args` | `code-read-learning` を clone した場所の `dist/index.js`（絶対パス） |
-| `env.CODE_READ_LEARNING_CWD` | （任意）実装を行った開発リポジトリ。省略時はツールの `projectRoot` で都度指定 |
-| `cwd` | （任意）MCP 起動時の作業ディレクトリ。Git リポジトリを指定すれば `projectRoot` 省略時の候補になる |
+学習そのものは Cursor AI が担当します。
 
-読解対象は **MCP のインストール先ではなく、自分が実装した開発リポジトリ** です。`projectRoot` パラメータ、`CODE_READ_LEARNING_CWD`、または `cwd` のいずれかで指定してください。
+このMCPは、
 
-設定後、Cursor を再起動してください。
+**「教材を準備する」ことだけに責務を限定しています。**
 
-### ローカル（Windows / macOS）とリモート（SSH）の違い
+---
 
-| 環境 | `mcp.json` の場所 | パスの形式 |
-|---|---|---|
-| ローカル | `~/.cursor/mcp.json` | OS に応じた絶対パス（例: `C:/...`, `/Users/...`） |
-| Remote SSH | **接続先**の `~/.cursor/mcp.json` | リモート OS の絶対パス（例: `/home/user/...`） |
+## Philosophy
 
-Remote SSH 利用時、ローカル PC 側のパスを `args` に書いても動作しません。
+AIによって、
 
-### 動作確認
+コードを書くコストは下がった。
 
-```bash
-cd /path/to/code-read-learning
-npm install
-ls dist/index.js node_modules/@modelcontextprotocol/sdk/package.json
+だからこそ、
 
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' \
-  | node dist/index.js
-```
+コードを読む力が重要になる。
 
-`serverInfo` を含む JSON が返れば MCP サーバーは正常です。
+---
 
-`node_modules` がないと起動直後にプロセスが終了し、Cursor では `Connection closed` と表示されます。
+code-read-learning は、
 
-### セットアップ手順まとめ
+AI時代のエンジニアのための
 
-| 手順 | 必須 | 説明 |
-|---|---|---|
-| `git clone` | ✅ | ソース + `dist/` を取得 |
-| `npm install` | ✅ | 依存関係のインストール |
-| `mcp.json` 設定 | ✅ | MCP サーバーの登録 |
-| Cursor 再起動 | ✅ | MCP 設定の反映 |
-| `~/.cursor/commands/code-read.md` | 任意 | `/code-read` スラッシュコマンドを使う場合 |
+**Code Reading Training Environment**
 
-### ビルド（開発者向け・src 変更後）
+です。
 
-```bash
-npm run build
-git add dist/
-git commit -m "build: update dist"
-```
+---
 
-利用者はビルド不要です。`src/` を変更した開発者が `dist/` を更新して push してください。
+毎日30分。
 
-## ローカル実行
+自分が書いたコードを読む。
 
-```bash
-npm run build
-npm start
-```
+それだけです。
 
-stdio トランスポートで起動します。通常は Cursor から利用します。
+しかし半年後には、
 
-### 呼び出し例
+AIが生成したコードを
 
-実装・コミット（またはステージ）後に:
+自分でレビューできるようになります。
 
-```
-list_modules({ projectRoot: "/path/to/your-dev-project" })
+---
 
-get_learning_material({
-  projectRoot: "/path/to/your-dev-project",
-  module: "root"
-})
-```
-
-## エラー時の挙動
-
-- 読解対象リポジトリが特定できない場合 → `requiresProjectSelection`
-- Git リポジトリでない場合
-- ステージ済み変更も最新コミットもない場合（＝読解する自分の実装差分がない）
-- `git` コマンドが見つからない場合
-
-いずれも分かりやすい日本語メッセージを返します。
-
-## 将来拡張（未実装）
-
-- `get_learning_material_staged` — `git diff --staged` 専用
-- `get_learning_material_commit` — 指定コミット
-- `get_learning_material_file` — 指定ファイル
-- `get_learning_material_function` — 指定関数
-
-## ライセンス
+## License
 
 ISC
