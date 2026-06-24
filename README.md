@@ -6,12 +6,38 @@
 
 ## 機能
 
+### `list_modules`
+
+プロジェクト内の学習対象モジュール一覧を返します。
+
+- `root` — 親リポジトリ（サブモジュール配下を除く）
+- サブモジュール — `.gitmodules` から検出（例: `luna`, `tokuto`）
+
 ### `get_learning_material`
 
-入力なしで、以下の優先順位で教材を取得します。
+以下の優先順位で教材を取得します。
 
 1. `git diff --staged`（ステージ済み変更）
 2. `git show HEAD`（最新コミット）
+
+#### 入力
+
+| パラメータ | 必須 | 説明 |
+|---|---|---|
+| `module` | 任意 | 学習対象モジュール（`root`, `luna` など）。サブモジュールがある場合に指定 |
+
+サブモジュールが存在し `module` が省略された場合は、教材の代わりにモジュール選択を要求します。
+
+```json
+{
+  "requiresModuleSelection": true,
+  "availableModules": [
+    { "id": "root", "name": "ルート（親リポジトリ）", "path": ".", "type": "root" },
+    { "id": "luna", "name": "luna", "path": "luna", "type": "submodule" }
+  ],
+  "message": "複数のモジュールが見つかりました..."
+}
+```
 
 #### 出力
 
@@ -24,7 +50,9 @@
   "learningPrompt": "Code Reading Learning Mode\n...",
   "meta": {
     "source": "staged",
-    "workingDirectory": "/path/to/repo"
+    "workingDirectory": "/path/to/repo",
+    "module": { "id": "luna", "name": "luna", "path": "luna", "type": "submodule" },
+    "availableModules": []
   }
 }
 ```
@@ -84,8 +112,17 @@ stdio トランスポートで起動します。通常は Cursor から利用し
 1. 開発チャットで Agent が実装を行う
 2. 実装完了後にコミット（または `git add` でステージ）
 3. 学習用の固定チャットで `/code-read` を実行
-4. MCP が教材を生成
-5. AI が Code Reading Learning モードで 1 構文ずつ読解を進める
+4. サブモジュールがある場合はモジュールを選択
+5. MCP が教材を生成
+6. AI が Code Reading Learning モードで 1 構文ずつ読解を進める
+
+### モジュール選択の例
+
+```
+list_modules → luna, tokuto, root を確認
+get_learning_material({ module: "luna" }) → luna サブモジュールの差分で学習
+get_learning_material({ module: "root" }) → 親リポジトリ直下のみ
+```
 
 ## エラー時の挙動
 

@@ -51,6 +51,16 @@ async function runGit(
   }
 }
 
+function buildPathspecArgs(excludePaths: string[]): string[] {
+  const args = ["."];
+
+  for (const excludePath of excludePaths) {
+    args.push(`:(exclude)${excludePath}`);
+  }
+
+  return args;
+}
+
 export async function isGitRepository(cwd: string): Promise<boolean> {
   try {
     await runGit(["rev-parse", "--is-inside-work-tree"], cwd);
@@ -63,17 +73,35 @@ export async function isGitRepository(cwd: string): Promise<boolean> {
   }
 }
 
-export async function getStagedDiff(cwd: string): Promise<string> {
-  const { stdout } = await runGit(["diff", "--staged"], cwd);
+export async function getStagedDiff(
+  cwd: string,
+  excludePaths: string[] = []
+): Promise<string> {
+  const args = ["diff", "--staged", "--", ...buildPathspecArgs(excludePaths)];
+  const { stdout } = await runGit(args, cwd);
   return stdout;
 }
 
-export async function getHeadDiff(cwd: string): Promise<string> {
-  const { stdout } = await runGit(["show", "HEAD", "--format=", "--patch"], cwd);
+export async function getHeadDiff(
+  cwd: string,
+  excludePaths: string[] = []
+): Promise<string> {
+  const args = [
+    "show",
+    "HEAD",
+    "--format=",
+    "--patch",
+    "--",
+    ...buildPathspecArgs(excludePaths),
+  ];
+  const { stdout } = await runGit(args, cwd);
   return stdout;
 }
 
-export async function resolveDiff(cwd: string): Promise<{
+export async function resolveDiff(
+  cwd: string,
+  excludePaths: string[] = []
+): Promise<{
   diff: string;
   source: DiffSource;
 }> {
@@ -84,13 +112,13 @@ export async function resolveDiff(cwd: string): Promise<{
     );
   }
 
-  const stagedDiff = await getStagedDiff(cwd);
+  const stagedDiff = await getStagedDiff(cwd, excludePaths);
   if (stagedDiff.trim().length > 0) {
     return { diff: stagedDiff, source: "staged" };
   }
 
   try {
-    const headDiff = await getHeadDiff(cwd);
+    const headDiff = await getHeadDiff(cwd, excludePaths);
     if (headDiff.trim().length > 0) {
       return { diff: headDiff, source: "head" };
     }

@@ -7,3 +7,22 @@ export interface LearningMaterial {
 }
 
 export type DiffSource = "staged" | "head";
+
+export type ModuleType = "root" | "submodule";
+
+export interface ModuleInfo {
+  id: string;
+  name: string;
+  path: string;
+  type: ModuleType;
+}
+
+export interface LearningMaterialOptions {
+  module?: string;
+}
+
+export interface ModuleSelectionRequired {
+  requiresModuleSelection: true;
+  availableModules: ModuleInfo[];
+  message: string;
+}
