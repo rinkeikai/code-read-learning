@@ -65,38 +65,65 @@
 
 ## セットアップ
 
-### 1. 依存関係のインストール
+### 前提条件
+
+- **Node.js**（v18 以上推奨）
+- **Git**（PATH に通っていること）
+- **Cursor**（MCP 対応版）
+
+> **注意**: このリポジトリには `dist/` と `node_modules/` は含まれていません（`.gitignore` 対象）。  
+> **`git clone` だけでは使えません。** クローン後に `npm install` と Cursor 設定が必要です。
+
+### 他の環境で初めて使う場合
 
 ```bash
+git clone https://github.com/rinkeikai/code-read-learning.git
 cd code-read-learning
 npm install
 ```
 
-### 2. ビルド
+`npm install` 実行時に `prepare` スクリプトが走り、自動で `npm run build`（TypeScript コンパイル）が行われ、`dist/index.js` が生成されます。
 
-```bash
-npm run build
-```
-
-### 3. Cursor への登録
-
-Cursor の MCP 設定（`~/.cursor/mcp.json` またはプロジェクトの `.cursor/mcp.json`）に追加します。
+続いて Cursor の MCP 設定（`~/.cursor/mcp.json`）に追加します。パスは clone 先に合わせて変更してください。
 
 ```json
 {
   "mcpServers": {
     "code-read-learning": {
       "command": "node",
-      "args": ["C:/Users/kh000576/MCP/code-read-learning/dist/index.js"],
-      "cwd": "C:/path/to/your/project"
+      "args": ["/path/to/code-read-learning/dist/index.js"],
+      "cwd": "/path/to/your/project"
     }
   }
 }
 ```
 
+| 手順 | 必須 | 説明 |
+|---|---|---|
+| `git clone` | ✅ | ソースを取得 |
+| `npm install` | ✅ | 依存関係のインストール + ビルド（`prepare` 経由） |
+| `mcp.json` 設定 | ✅ | MCP サーバーの登録 |
+| Cursor 再起動 | ✅ | MCP 設定の反映 |
+| `~/.cursor/commands/code-read.md` | 任意 | `/code-read` スラッシュコマンドを使う場合 |
+
 **重要**: `cwd` を学習対象の Git リポジトリルートに設定してください。
 
 環境変数 `CODE_READ_LEARNING_CWD` を指定した場合は、そちらが `cwd` より優先されます。
+
+### 依存関係のインストール（既に clone 済みの場合）
+
+```bash
+cd code-read-learning
+npm install
+```
+
+### ビルド（ソース変更後など）
+
+```bash
+npm run build
+```
+
+`npm install` 済みであれば、通常は `prepare` によりビルド済みです。`src/` を編集した場合のみ再ビルドしてください。
 
 ## ローカル実行
 
