@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "code-read-learning": {
+      "command": "node",
+      "args": [
+        "/home/gs/loopgate_dev/claude-knowledge/code-read-learning/dist/index.js"
+      ],
+      "env": {
+        "CODE_READ_LEARNING_CWD": "/home/gs/loopgate_dev"
+      }
+    }
+  }
+}

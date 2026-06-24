@@ -68,11 +68,81 @@
 ### 前提条件
 
 - **Node.js**（v18 以上推奨）
-- **Git**（PATH に通っていること）
+- **Git**（PATH に通されていること）
 - **Cursor**（MCP 対応版）
 
-> **注意**: このリポジトリには `dist/` と `node_modules/` は含まれていません（`.gitignore` 対象）。  
-> **`git clone` だけでは使えません。** クローン後に `npm install` と Cursor 設定が必要です。
+> **注意**: `node_modules/` はリポジトリに含まれません。  
+> **`git clone` だけでは使えません。** クローン後に `npm install` と Cursor 設定が必要です。  
+> `dist/`（ビルド済み JS）はリポジトリに含まれるため、リモート環境での TypeScript ビルドは不要です。
+
+### リモート SSH 環境（review-bridge-mcp と同じ使い方）
+
+[review-bridge-mcp](../review-bridge-mcp) と同様、開発プロジェクトの `claude-knowledge/` 配下に置いて使う構成を推奨します。
+
+```bash
+# 例: loopgate_dev を clone 済みの場合
+cd ~/loopgate_dev/claude-knowledge
+git clone https://github.com/rinkeikai/code-read-learning.git
+cd code-read-learning
+npm install
+```
+
+動作確認:
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' \
+  | node dist/index.js
+```
+
+`serverInfo` を含む JSON が返れば OK です。
+
+#### リモートの `~/.cursor/mcp.json`
+
+**SSH 接続先（Linux）の** `~/.cursor/mcp.json` に設定します。Windows 側のパスは使えません。
+
+`mcp.json.example` を参照し、パスを環境に合わせて変更してください。
+
+```json
+{
+  "mcpServers": {
+    "code-read-learning": {
+      "command": "node",
+      "args": [
+        "/home/gs/loopgate_dev/claude-knowledge/code-read-learning/dist/index.js"
+      ],
+      "env": {
+        "CODE_READ_LEARNING_CWD": "/home/gs/loopgate_dev"
+      }
+    }
+  }
+}
+```
+
+| 設定項目 | 説明 |
+|---|---|
+| `args` | clone 先の `dist/index.js` の**リモート絶対パス** |
+| `CODE_READ_LEARNING_CWD` | 学習対象の Git リポジトリルート（例: `loopgate_dev`） |
+
+設定後、Cursor を再起動してください。
+
+#### review-bridge-mcp との比較
+
+| 項目 | review-bridge-mcp | code-read-learning |
+|---|---|---|
+| 配置場所 | `claude-knowledge/review-bridge-mcp` | `claude-knowledge/code-read-learning` |
+| clone 後の作業 | `npm install` → `npm run build` | `npm install` のみ（`dist/` 同梱） |
+| 学習対象の指定 | 不要 | `CODE_READ_LEARNING_CWD` で指定 |
+
+#### リモートで Connection closed になる場合
+
+```bash
+cd ~/code-read-learning   # または claude-knowledge/code-read-learning
+npm install
+ls -la dist/index.js
+ls node_modules/@modelcontextprotocol/sdk/package.json
+```
+
+`node_modules` が無いと起動直後に落ち、`Connection closed` になります。
 
 ### 他の環境で初めて使う場合
 
@@ -82,8 +152,6 @@ cd code-read-learning
 npm install
 ```
 
-`npm install` 実行時に `prepare` スクリプトが走り、自動で `npm run build`（TypeScript コンパイル）が行われ、`dist/index.js` が生成されます。
-
 続いて Cursor の MCP 設定（`~/.cursor/mcp.json`）に追加します。パスは clone 先に合わせて変更してください。
 
 ```json
@@ -92,7 +160,9 @@ npm install
     "code-read-learning": {
       "command": "node",
       "args": ["/path/to/code-read-learning/dist/index.js"],
-      "cwd": "/path/to/your/project"
+      "env": {
+        "CODE_READ_LEARNING_CWD": "/path/to/your/project"
+      }
     }
   }
 }
@@ -100,15 +170,13 @@ npm install
 
 | 手順 | 必須 | 説明 |
 |---|---|---|
-| `git clone` | ✅ | ソースを取得 |
-| `npm install` | ✅ | 依存関係のインストール + ビルド（`prepare` 経由） |
+| `git clone` | ✅ | ソース + `dist/` を取得 |
+| `npm install` | ✅ | 依存関係のインストール |
 | `mcp.json` 設定 | ✅ | MCP サーバーの登録 |
 | Cursor 再起動 | ✅ | MCP 設定の反映 |
 | `~/.cursor/commands/code-read.md` | 任意 | `/code-read` スラッシュコマンドを使う場合 |
 
-**重要**: `cwd` を学習対象の Git リポジトリルートに設定してください。
-
-環境変数 `CODE_READ_LEARNING_CWD` を指定した場合は、そちらが `cwd` より優先されます。
+**重要**: 学習対象リポジトリは `CODE_READ_LEARNING_CWD` で指定してください。
 
 ### 依存関係のインストール（既に clone 済みの場合）
 
@@ -117,13 +185,15 @@ cd code-read-learning
 npm install
 ```
 
-### ビルド（ソース変更後など）
+### ビルド（開発者向け・src 変更後）
 
 ```bash
 npm run build
+git add dist/
+git commit -m "build: update dist"
 ```
 
-`npm install` 済みであれば、通常は `prepare` によりビルド済みです。`src/` を編集した場合のみ再ビルドしてください。
+利用者はビルド不要です。`src/` を変更した開発者が `dist/` を更新して push してください。
 
 ## ローカル実行
 
