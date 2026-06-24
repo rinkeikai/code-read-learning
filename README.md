@@ -175,6 +175,12 @@ Code Reading Session 開始
 
 ---
 
+## セットアップ
+
+インストール、Cursor 設定、MCP ツールの使い方は **[SETUP.md](./SETUP.md)** を参照してください。
+
+---
+
 ## このMCPがやること
 
 ✅ Git差分を取得する
